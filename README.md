@@ -6,7 +6,7 @@ Aplicativo móvel desenvolvido em Flutter para gerenciamento de **Cursos** e **A
 
 ## 🛠️ Novas Atualizações e Melhorias do Projeto
 
-O sistema passou por uma refatoração completa para se adequar às boas práticas de desenvolvimento e exigências acadêmicas. Abaixo estão as principais implementações desta versão:
+2.1 O sistema passou por uma refatoração completa para se adequar às boas práticas de desenvolvimento e exigências acadêmicas. Abaixo estão as principais implementações desta versão:
 
 ### 1. Banco de Dados Relacional (SQLite)
 * **Interligação de Tabelas:** A tabela `students` agora possui uma chave estrangeira (`courseId`) que faz referência direta à tabela `courses`.
@@ -23,24 +23,44 @@ O sistema passou por uma refatoração completa para se adequar às boas prátic
 
 ---
 
-## 🏗️ Estrutura do Projeto (Padrão MVC/Repository)
+3.1 Este repositório foi atualizado para implementar a funcionalidade de **Rolagem Infinita (Infinite Scroll) com Paginação Real** na listagem principal de cursos, seguindo todos os requisitos solicitados na atividade bônus
+
+### 🛠️ O que foi alterado e implementado:
+1. **Camada de Dados Paginada (`CourseRepository`):** O método de listagem foi evoluído para `listarPaginado(limit, offset)`, aplicando de forma nativa as cláusulas `LIMIT` e `OFFSET` do SQLite, além de uma ordenação explícita por `courseId ASC` para evitar duplicidade de registros entre páginas.
+2. **Gerenciamento de Estado por Controller (`CursoListagemController`):** Centralização de toda a lógica de paginação estendendo `ChangeNotifier`. A controller gerencia os estados obrigatórios de `listaDeItens`, `isLoading`, `hasMoreItems`, `errorMessage` e `currentPage`, garantindo travas de segurança para impedir requisições duplicadas simultâneas.
+3. **Interface Reativa (`CursosListagemScreen`):** A interface foi totalmente desacoplada de múltiplos `setState` locais, passando a reagir estritamente às mudanças do controller através do componente `ListenableBuilder`.
+4. **Controle de Fluxo do Scroll (`ScrollController`):** Implementação de um detector ativo de rolagem conectado ao `ListView.builder`. O app calcula se o usuário se aproximou a menos de 200 pixels do final da lista para disparar automaticamente a busca da próxima página.
+5. **Tratamento Completo de Estados de Tela:**
+   * **Carregamento Inicial:** Feedback visual centralizado (`CircularProgressIndicator`) enquanto a lista está vazia.
+   * **Carregamento Adicional:** Indicador de progresso posicionado discretamente no rodapé (fim da lista), mantendo os cursos anteriores visíveis na tela.
+   * **Tratamento de Lista Vazia:** Mensagem customizada caso o banco não possua registros ("Nenhum curso cadastrado.").
+   * **Fim da Lista:** Bloqueio de novas requisições e exibição da mensagem de conclusão ("Todos os cursos foram carregados.").
+   * **Tratamento de Erros:** Exibição de mensagem amigável e botão de "Tentar Novamente" tanto na primeira carga quanto nas paginações seguintes, sem apagar o que já estava renderizado.
+
+---
+
+## 📂 Estrutura de Pastas do Recurso
+
+A implementação foi organizada seguindo a arquitetura padrão do projeto[cite: 197]:
 
 ```text
 lib/
 ├── controllers/
-│   ├── course_controller.dart     # Regras de negócio e ChangeNotifier de Cursos
-│   └── student_controller.dart    # Regras de negócio e ChangeNotifier de Alunos
+│   ├── course_controller.dart
+│   ├── CursoListagemController.dart  # Máquina de estados da paginação
+│   └── student_controller.dart
 ├── database/
-│   └── app_database.dart          # Configuração do SQLite e criação das tabelas relacionais
+│   └── app_database.dart             # Inicialização do banco SQLite
 ├── models/
-│   ├── course.dart                # Modelo de dados de Curso
-│   └── student.dart               # Modelo de dados de Aluno (com ID do curso)
+│   ├── course.dart                   # Modelo da entidade Course
+│   └── student.dart
 ├── pages/
-│   └── course_page.dart           # Interface visual unificada com ListenableBuilder (Sem setState)
+│   ├── course_page.dart
+│   └── CursoListagemPage.dart        # Interface com ScrollController e ListenableBuilder
 ├── repositories/
-│   ├── course_repository.dart     # Comunicação direta com a tabela de cursos no SQLite
-│   └── student_repository.dart    # Comunicação direta com a tabela de alunos no SQLite
-└── main.dart                      # Inicialização limpa do aplicativo
+│   ├── course_repository.dart        # Queries com LIMIT e OFFSET
+│   └── student_repository.dart
+└── main.dart
 ```
 
 💻 Como Executar o Projeto

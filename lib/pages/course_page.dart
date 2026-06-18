@@ -3,6 +3,7 @@ import '../models/course.dart';
 import '../models/student.dart';
 import '../controllers/course_controller.dart';
 import '../controllers/student_controller.dart';
+import 'CursoListagemPage.dart'; // Import da sua nova página paginada
 
 class CoursePage extends StatefulWidget {
   const CoursePage({super.key});
@@ -15,14 +16,7 @@ class _CoursePageState extends State<CoursePage> {
   final CourseController _courseController = CourseController();
   final StudentController _studentController = StudentController();
 
-  final _courseFormKey = GlobalKey<FormState>();
   final _studentFormKey = GlobalKey<FormState>();
-
-  // Controllers dos Inputs de Curso
-  final _nameController = TextEditingController();
-  final _durationController = TextEditingController();
-  final _coordinatorController = TextEditingController();
-  final _descriptionController = TextEditingController();
 
   // Controllers dos Inputs de Aluno
   final _studentNameController = TextEditingController();
@@ -32,9 +26,17 @@ class _CoursePageState extends State<CoursePage> {
   @override
   void initState() {
     super.initState();
-    // Apenas disparamos a carga inicial dos dados
+    // Carrega os dados necessários para a aba de alunos
     _courseController.carregarCursos();
     _studentController.carregarAlunos();
+  }
+
+  @override
+  void dispose() {
+    _studentNameController.dispose();
+    _studentRaController.dispose();
+    _studentEmailController.dispose();
+    super.dispose();
   }
 
   @override
@@ -56,163 +58,13 @@ class _CoursePageState extends State<CoursePage> {
     );
   }
 
-  // ==================== ABA DE CURSOS (COM LISTENABLEBUILDER) ====================
+  // ==================== ABA DE CURSOS ATUALIZADA ====================
   Widget _buildCourseTab() {
-    return Scaffold(
-      body: ListenableBuilder(
-        listenable: _courseController,
-        builder: (context, _) {
-          if (_courseController.courses.isEmpty) {
-            return const Center(child: Text('Nenhum curso cadastrado.'));
-          }
-          return ListView.builder(
-            itemCount: _courseController.courses.length,
-            itemBuilder: (context, index) {
-              final curso = _courseController.courses[index];
-              return ListTile(
-                title: Text(curso.name),
-                subtitle: Text(
-                  'Coord: ${curso.coordinator} | ${curso.duration} semestres',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () => _mostrarFormularioCurso(course: curso),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _confirmarRemocaoCurso(curso.courseId!),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _mostrarFormularioCurso(),
-        child: const Icon(Icons.add),
-      ),
-    );
+    // Agora chama diretamente a tela com rolagem infinita e paginação
+    return const CursoListagemPage();
   }
 
-  void _mostrarFormularioCurso({Course? course}) {
-    if (course != null) {
-      _nameController.text = course.name;
-      _durationController.text = course.duration.toString();
-      _coordinatorController.text = course.coordinator;
-      _descriptionController.text = course.description;
-    } else {
-      _nameController.clear();
-      _durationController.clear();
-      _coordinatorController.clear();
-      _descriptionController.clear();
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: Form(
-          key: _courseFormKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                course == null ? 'Cadastrar Curso' : 'Editar Curso',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nome do Curso'),
-                validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
-              ),
-              TextFormField(
-                controller: _durationController,
-                decoration: const InputDecoration(
-                  labelText: 'Duração (Semestres)',
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
-              ),
-              TextFormField(
-                controller: _coordinatorController,
-                decoration: const InputDecoration(labelText: 'Coordenador'),
-                validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Descrição'),
-                maxLines: 2,
-                validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  if (_courseFormKey.currentState!.validate()) {
-                    final novoCurso = Course(
-                      courseId: course?.courseId,
-                      name: _nameController.text,
-                      duration: int.parse(_durationController.text),
-                      coordinator: _coordinatorController.text,
-                      description: _descriptionController.text,
-                    );
-                    if (course == null) {
-                      await _courseController.adicionarCurso(novoCurso);
-                    } else {
-                      await _courseController.atualizarCurso(novoCurso);
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                    _exibirSnackBar('Operação realizada no curso!');
-                  }
-                },
-                child: Text(course == null ? 'Salvar' : 'Atualizar'),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _confirmarRemocaoCurso(int id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Remoção'),
-        content: const Text('Deseja realmente excluir este curso?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _courseController.removerCurso(id);
-              if (context.mounted) Navigator.pop(context);
-              _exibirSnackBar('Curso removido!');
-            },
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== ABA DE ALUNOS (COM LISTENABLEBUILDER MULTIPLO) ====================
+  // ==================== ABA DE ALUNOS ====================
   Widget _buildStudentTab() {
     return Scaffold(
       body: ListenableBuilder(
@@ -267,7 +119,6 @@ class _CoursePageState extends State<CoursePage> {
   }
 
   void _mostrarFormularioAluno({Student? student}) {
-    // Usamos um ValueNotifier local para controlar o estado do dropdown sem usar setState
     final ValueNotifier<int?> cursoSelecionadoNotifier = ValueNotifier<int?>(
       student?.courseId ??
           (_courseController.courses.isNotEmpty
@@ -324,10 +175,7 @@ class _CoursePageState extends State<CoursePage> {
                 decoration: const InputDecoration(labelText: 'E-mail'),
                 validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
               ),
-
               const SizedBox(height: 15),
-
-              // ListenableBuilder focado apenas no Dropdown usando o ValueNotifier
               ListenableBuilder(
                 listenable: cursoSelecionadoNotifier,
                 builder: (context, _) {
@@ -351,13 +199,11 @@ class _CoursePageState extends State<CoursePage> {
                             );
                           }).toList(),
                           onChanged: (novoId) {
-                            cursoSelecionadoNotifier.value =
-                                novoId; // Atualiza o valor sem setState!
+                            cursoSelecionadoNotifier.value = novoId;
                           },
                         );
                 },
               ),
-
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
